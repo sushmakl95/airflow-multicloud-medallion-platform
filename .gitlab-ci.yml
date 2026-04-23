@@ -1,0 +1,33 @@
+image: python:3.11-slim
+
+stages:
+  - lint
+  - test
+
+variables:
+  AIRFLOW_VERSION: "2.9.3"
+  PYTHON_VERSION: "3.11"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  AIRFLOW__CORE__UNIT_TEST_MODE: "True"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+
+cache:
+  paths:
+    - .pip-cache/
+
+lint:
+  stage: lint
+  script:
+    - pip install -r requirements-dev.txt
+    - ruff check .
+    - black --check dags plugins include src tests
+    - yamllint .
+
+airflow-tests:
+  stage: test
+  needs: [lint]
+  script:
+    - pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+    - pip install -r requirements-dev.txt
+    - airflow db migrate
+    - pytest tests/ -v

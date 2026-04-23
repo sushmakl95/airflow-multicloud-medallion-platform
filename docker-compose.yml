@@ -1,0 +1,93 @@
+services:
+  localstack:
+    image: localstack/localstack:3.5
+    ports: ["4566:4566"]
+    environment:
+      SERVICES: s3,glue,iam,sts,lambda,events,secretsmanager
+      DEBUG: "0"
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports: ["10000:10000", "10001:10001", "10002:10002"]
+    command: azurite --blobHost 0.0.0.0 --loose
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports: ["5432:5432"]
+
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: inventory
+      MYSQL_USER: debezium
+      MYSQL_PASSWORD: debezium
+    ports: ["3306:3306"]
+
+  redpanda:
+    image: redpandadata/redpanda:v24.1.2
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports: ["9092:9092"]
+
+  kafka-connect:
+    image: debezium/connect:2.6
+    depends_on: [redpanda, postgres, mysql]
+    environment:
+      BOOTSTRAP_SERVERS: redpanda:9092
+      GROUP_ID: connect-cluster
+      CONFIG_STORAGE_TOPIC: _connect_configs
+      OFFSET_STORAGE_TOPIC: _connect_offsets
+      STATUS_STORAGE_TOPIC: _connect_statuses
+    ports: ["8083:8083"]
+
+  hive-metastore:
+    image: apache/hive:4.0.0
+    environment:
+      SERVICE_NAME: metastore
+    ports: ["9083:9083"]
+
+  trino:
+    image: trinodb/trino:442
+    ports: ["8085:8080"]
+    volumes:
+      - ./configs/trino_catalog_delta.properties:/etc/trino/catalog/delta.properties
+
+  marquez:
+    image: marquezproject/marquez:0.47.0
+    ports: ["5000:5000", "3000:3000"]
+    depends_on: [postgres]
+    environment:
+      MARQUEZ_DB_HOST: postgres
+      MARQUEZ_DB_USER: airflow
+      MARQUEZ_DB_PASSWORD: airflow
+
+  airflow:
+    image: apache/airflow:2.9.3-python3.11
+    depends_on: [postgres, redpanda]
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__LINEAGE__BACKEND: "airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter"
+      OPENLINEAGE_URL: http://marquez:5000
+      OPENLINEAGE_NAMESPACE: airflow-multicloud
+      _PIP_ADDITIONAL_REQUIREMENTS: "openlineage-airflow==1.15.0"
+    ports: ["8080:8080"]
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - ./include:/opt/airflow/include
+      - ./src:/opt/airflow/src
+    command: standalone

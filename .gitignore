@@ -1,0 +1,41 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.local
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Spark / Hadoop
+derby.log
+metastore_db/
+spark-warehouse/
+target/
+.bsp/
+
+# Airflow
+airflow.cfg
+airflow.db
+logs/
+airflow_home/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+# dlt / GE
+.dlt/
+.dlt_state/
+uncommitted/

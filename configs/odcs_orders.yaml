@@ -1,0 +1,52 @@
+apiVersion: v3.0.0
+kind: DataContract
+id: orders-bronze
+status: active
+name: orders
+version: 1.0.0
+
+description:
+  purpose: Bronze landing of CDC orders from OLTP Postgres
+  limitations: contains PII (email, phone); mask before silver promotion
+  usage: internal only
+
+datasource:
+  system: postgres
+  database: orders_oltp
+  schema: public
+  table: orders
+
+schema:
+  - name: order_id
+    logicalType: string
+    required: true
+  - name: customer_id
+    logicalType: string
+    required: true
+  - name: country
+    logicalType: string
+    required: true
+    pattern: "^[A-Z]{2}$"
+  - name: currency
+    logicalType: string
+    required: true
+    values: [USD, EUR, GBP, INR]
+  - name: placed_at
+    logicalType: timestamp_tz
+    required: true
+  - name: total
+    logicalType: decimal
+    precision: 18
+    scale: 2
+  - name: email
+    logicalType: string
+    classifications: [PII]
+
+serviceLevel:
+  availability: "99.9%"
+  retention: "P90D"
+  latency: "P0DT5M"
+
+quality:
+  - rule: uniqueness(order_id)
+  - rule: completeness(customer_id) > 0.999

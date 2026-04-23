@@ -1,0 +1,21 @@
+source:
+  type: airflow
+  serviceName: airflow-multicloud-medallion
+  serviceConnection:
+    config:
+      type: Airflow
+      hostPort: http://airflow:8080
+      connection:
+        type: Backend
+  sourceConfig:
+    config:
+      type: PipelineMetadata
+
+sink:
+  type: metadata-rest
+  config: {}
+
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: http://openmetadata:8585/api
+    authProvider: no-auth

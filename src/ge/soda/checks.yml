@@ -1,0 +1,8 @@
+checks for gold.orders_daily:
+  - row_count > 0
+  - duplicate_count(ds, country, currency) = 0
+  - missing_count(ds) = 0
+  - invalid_count(country) = 0:
+      valid regex: ^[A-Z]{2}$
+  - values in currency must be in (USD, EUR, GBP, INR)
+  - anomaly score for gmv < 0.9
